@@ -1,0 +1,9 @@
+.stack-work/
+.stack-work
+*~
+\#*.*#
+.#*
+.todo
+dist-newstyle/
+.hie/
+assets/
