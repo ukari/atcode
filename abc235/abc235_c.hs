@@ -1,7 +1,7 @@
-{-# LANGUAGE BangPatterns #-}
-
-import Data.Maybe (fromJust)
+import Control.Monad (replicateM)
+import Data.Maybe (fromJust, fromMaybe)
 import qualified Data.ByteString.Char8 as BS
+import qualified Data.IntMap.Strict as IM
 
 tuplify2 :: [Int] -> (Int, Int)
 tuplify2 [x, y] = (x, y)
@@ -20,6 +20,9 @@ readIntTuple = do
 readIntTupleList :: IO [ (Int, Int) ]
 readIntTupleList = map (getIntTupleBS . BS.words) . BS.lines <$> BS.getContents
 
+readIntTupleListN :: Int -> IO [ (Int, Int) ]
+readIntTupleListN = flip replicateM (getIntTupleBS . BS.words <$> BS.getLine)
+
 getIntBS :: BS.ByteString -> Int
 getIntBS = fst . fromJust . BS.readInt
 
@@ -31,17 +34,24 @@ getIntTupleBS = tuplify2 . map getIntBS
 
 main :: IO ()
 main = do
-  [_n, _q] <- readIntList
+  [_n, q] <- readIntList
   a <- readIntList
-  pairs <- readIntTupleList
-  mapM_ (print . findPos a 1 1) pairs
+  pairs <- readIntTupleListN q
+  let pairsMap = makeIndices a
+  print pairsMap
+  print pairs
+  mapM_ (print . findPos pairsMap) pairs
   where
-    findPos :: [ Int ] -> Int -> Int -> (Int, Int) -> Int
-    findPos [] _ _ _ = -1
-    findPos (x:xs) !acc idx (xi, ki)
-      | acc == ki && xi == x = idx
-      | xi == x = findPos xs (acc + 1) (idx + 1) (xi, ki)
-      | otherwise = findPos xs acc (idx + 1) (xi, ki)
-    helper :: [ Int ] -> (Int, Int)
-    helper [x1, x2] = (x1, x2)
-    helper _ = undefined
+    findPos :: IM.IntMap (IM.IntMap Int) -> (Int, Int) -> Int
+    findPos indices (xi, ki) = case IM.lookup xi indices of
+      Just indices2 -> fromMaybe (-1) (IM.lookup ki indices2)
+      Nothing -> -1
+    makeIndices :: [ Int ] -> IM.IntMap (IM.IntMap Int)
+    makeIndices = foldr (\(idx, cur) acc ->
+      IM.insertWith IM.union cur (makeInsert acc cur idx) acc
+      ) IM.empty . reverse . zip [ 1.. ]
+      where
+        makeInsert :: IM.IntMap (IM.IntMap Int) -> Int -> Int -> IM.IntMap Int
+        makeInsert ids k i = case IM.lookup k ids of
+          Just old -> IM.singleton (IM.size old + 1) i
+          Nothing -> IM.singleton 1 i
