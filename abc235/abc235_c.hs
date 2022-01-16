@@ -1,4 +1,6 @@
 import Control.Monad (replicateM)
+import Data.Char (isSpace)
+import Data.List (unfoldr)
 import Data.Maybe (fromJust, fromMaybe)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.IntMap.Strict as IM
@@ -7,6 +9,12 @@ import qualified Data.HashMap.Strict as HM
 tuplify2 :: [Int] -> (Int, Int)
 tuplify2 [x, y] = (x, y)
 tuplify2 _ = undefined
+
+bsReadIntList :: IO [ Int ]
+bsReadIntList = bsGetIntList <$> BS.getLine
+
+bsGetIntList :: BS.ByteString -> [ Int ]
+bsGetIntList = unfoldr (BS.readInt . BS.dropWhile isSpace)
 
 readIntList :: IO [ Int ]
 readIntList = do
@@ -35,17 +43,17 @@ getIntTupleBS = tuplify2 . map getIntBS
 
 main :: IO ()
 main = do
-  [_n, q] <- readIntList
-  a <- readIntList
+  [_n, q] <- bsReadIntList
+  a <- bsReadIntList
   pairs <- readIntTupleListN q
   let pairsMap = makeIndices a
   mapM_ (print . findPos pairsMap) pairs
   where
     findPos :: HM.HashMap (Int, Int) Int -> (Int, Int) -> Int
-    findPos indices (xi, ki) = fromMaybe (-1) ( HM.lookup (xi, ki) indices)
+    findPos indices (xi, ki) = fromMaybe (-1) (HM.lookup (xi, ki) indices)
     makeIndices :: [ Int ] -> HM.HashMap (Int, Int) Int
     makeIndices = fst . foldr (\(idx, cur) (acc1, acc2) ->
-      ( HM.insert (cur, lookup2 acc2 cur) idx acc1 , makeInsert2 acc2 cur)) (HM.empty, IM.empty :: IM.IntMap Int) . reverse . zip [ 1.. ]
+      (HM.insert (cur, lookup2 acc2 cur) idx acc1 , makeInsert2 acc2 cur)) (HM.empty, IM.empty :: IM.IntMap Int) . reverse . zip [ 1.. ]
       where
         lookup2 :: IM.IntMap Int -> Int -> Int
         lookup2 ids k = case IM.lookup k ids of
