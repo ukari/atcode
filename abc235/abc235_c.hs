@@ -1,6 +1,6 @@
 import Control.Monad (replicateM)
 import Data.Char (isSpace)
-import Data.List (unfoldr)
+import Data.List (unfoldr, concatMap)
 import Data.Maybe (fromJust, fromMaybe)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.IntMap.Strict as IM
@@ -50,14 +50,9 @@ main = do
   mapM_ (print . findPos pairsMap) pairs
   where
     findPos :: HM.HashMap (Int, Int) Int -> (Int, Int) -> Int
-    findPos indices (xi, ki) = fromMaybe (-1) (HM.lookup (xi, ki) indices)
+    findPos indices (xi, ki) = HM.lookupDefault (-1) (xi, ki) indices
     makeIndices :: [ Int ] -> HM.HashMap (Int, Int) Int
-    makeIndices = fst . foldr (\(idx, cur) (acc1, acc2) ->
-      (HM.insert (cur, lookup2 acc2 cur) idx acc1 , makeInsert2 acc2 cur)) (HM.empty, IM.empty :: IM.IntMap Int) . reverse . zip [ 1.. ]
-      where
-        lookup2 :: IM.IntMap Int -> Int -> Int
-        lookup2 ids k = case IM.lookup k ids of
-          Just old -> old + 1
-          Nothing -> 1
-        makeInsert2 :: IM.IntMap Int -> Int -> IM.IntMap Int
-        makeInsert2 ids k = IM.insert k (lookup2 ids k) ids
+    makeIndices = HM.fromList . fst . foldr (\(idx, cur) (acc1, acc2) ->
+      ( ((cur, IM.findWithDefault 0 cur acc2 + 1), idx) : acc1
+      , IM.insert cur (IM.findWithDefault 0 cur acc2 + 1) acc2))
+      ([], IM.empty :: IM.IntMap Int) . reverse . zip [ 1.. ]
