@@ -1,14 +1,15 @@
 {-# LANGUAGE PackageImports #-}
 
 import Control.Monad (replicateM)
-import Data.List (unfoldr, find)
+import Data.List (unfoldr, find, delete)
 import Data.Char (isSpace)
 import Data.Tuple (swap)
 import qualified Data.ByteString.Char8 as BS
 import qualified Data.Set as Set
--- import qualified Data.IntMap.Strict as IM
+import qualified Data.IntMap.Strict as IM
 import qualified Data.HashMap.Strict as HM
 import qualified "heaps" Data.Heap as Heap
+import Debug.Trace (traceShow)
 
 bsReadIntList :: IO [ Int ]
 bsReadIntList = bsGetIntList <$> BS.getLine
@@ -27,12 +28,43 @@ main = do
   (_n:m:q:_) <- bsReadIntList
   graph <- bsReadIntTuple3ListN m
   query <- bsReadIntTuple3ListN q
-  mapM_ (printResult . queryT graph) query
+  let t = mst graph
+  let selfCyc = selfCycle graph
+  mapM_ (printResult . queryT t selfCyc) query
 
-queryT :: [ Edge ] -> Edge -> Bool
-queryT res edge = case find (== edge) (mst (edge:res)) of
+replace :: [ Edge ] -> Edge -> Bool
+replace t (va1, va2, wa) = case find (\(vb1, vb2, wb) -> va1 == vb1 && va2 == vb2 && wa < wb) t of
   Just _ -> True
   Nothing -> False
+
+cycleDrop :: [ Edge ] -> Edge -> Bool
+cycleDrop t edge@(_, _, w1) = do
+  let cyc = rmForCycle (IM.fromListWith (<>) $ foldr (\e@(v1, v2, _w) acc -> (v1, [e]):(v2, [e]):acc) [] t)
+  cycleMinW w1 . map (\(_,_,w) -> w) . delete edge $ cyc
+    
+cycleMinW :: Int -> [ Int ] -> Bool
+cycleMinW _c [] = True
+cycleMinW c (w:wrest) = c < foldr min w wrest
+
+selfCycle :: [ Edge ] -> [ Edge ]
+selfCycle = filter (\(v1, v2, _w) -> v1 == v2)
+
+rmForCycle :: IM.IntMap [ Edge ] -> [ Edge ]
+rmForCycle t = do
+  let oldSize = IM.size t
+  let rest = IM.filter (\es -> length es > 1) t
+  let nextSize = IM.size rest
+  if oldSize == nextSize then concatMap snd . IM.toList $ rest
+    else rmForCycle rest
+
+queryT :: [ Edge ] -> [ Edge ]-> Edge -> Bool
+queryT t selfCyc edge = if isSelfCycleEdge edge then checkSelfCycle selfCyc edge else replace t edge || cycleDrop t edge
+
+isSelfCycleEdge :: Edge -> Bool
+isSelfCycleEdge (v1, v2, _w) = v1 == v2
+
+checkSelfCycle :: [ Edge ] -> Edge -> Bool
+checkSelfCycle selfCyc (va1, va2, wa) = cycleMinW wa . map (\(_,_,w) -> w) . filter (\(vb1, vb2, _wb) -> va1 == vb1 && va2 == vb1) $ selfCyc
 
 data Ans = Yes | No deriving (Show)
 
