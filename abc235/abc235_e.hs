@@ -41,7 +41,7 @@ cycleDrop :: [ Edge ] -> Edge -> Bool
 cycleDrop t edge@(_, _, w1) = do
   let cyc = rmForCycle (IM.fromListWith (<>) $ foldr (\e@(v1, v2, _w) acc -> (v1, [e]):(v2, [e]):acc) [] t)
   cycleMinW w1 . map (\(_,_,w) -> w) . delete edge $ cyc
-    
+
 cycleMinW :: Int -> [ Int ] -> Bool
 cycleMinW _c [] = True
 cycleMinW c (w:wrest) = c < foldr min w wrest
